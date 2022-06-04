@@ -21,14 +21,7 @@ type TransferExtrinscArgs = [string, bigint] & { dest: string; value: bigint; };
  */
 export async function handleBlock(thisBlock: SubstrateBlock): Promise<void> {
 
-    const _wallets = await extractBlockAsWallet(thisBlock);
-    await Promise.all(
-    [
-        await _wallets.forEach(element => {
-            element.save();
-        })
-    ]
-    );
+    await extractBlockAsWallet(thisBlock);
 }
 
 /**
@@ -36,9 +29,8 @@ export async function handleBlock(thisBlock: SubstrateBlock): Promise<void> {
  * @param thisBlock block
  * @returns extract aggregate data from block
  */
-async function extractBlockAsWallet(thisBlock: SubstrateBlock) :Promise<Wallet[]>{
+async function extractBlockAsWallet(thisBlock: SubstrateBlock) :Promise<void>{
 
-    let _wallets: Wallet[][] = [];
     const _wrapedExtinsics = wrapExtrinsics(thisBlock);
     const _nativeTransaction = _wrapedExtinsics.filter(
         (ext) => (
@@ -51,13 +43,11 @@ async function extractBlockAsWallet(thisBlock: SubstrateBlock) :Promise<Wallet[]
         (ext) => ext.extrinsic.method.section === 'ethereum' && ext.extrinsic.method.method === 'transact'
     );
     for (let index = 0; index < _nativeTransaction.length; index++) {
-        _wallets.push(await fetchNativeWallet(_nativeTransaction[index]));
+        await fetchNativeWallet(_nativeTransaction[index]);
     }
     for (let index = 0; index < _evmTransaction.length; index++) {
-        _wallets.push(await fetchEvmWallet(_evmTransaction[index]));
+        await fetchEvmWallet(_evmTransaction[index]);
     }
-
-    return _wallets.flat();
 }
 
 /**
@@ -68,8 +58,7 @@ async function extractBlockAsWallet(thisBlock: SubstrateBlock) :Promise<Wallet[]
  * @param txhash transaction hash
  * @returns wallet entity
  */
-async function fetchNativeWallet(_ext: SubstrateExtrinsic): Promise<Wallet[]>{
-    let _wallets: Wallet[] = [];
+async function fetchNativeWallet(_ext: SubstrateExtrinsic): Promise<void>{
     const modlPotStakeADDRESS = "YQnbw3h6couUX48Ghs3qyzhdbyxA3Gu9KQCoi8z2CPBf9N3";
     if(_ext.success){
 
@@ -97,52 +86,55 @@ async function fetchNativeWallet(_ext: SubstrateExtrinsic): Promise<Wallet[]>{
             let _sender: Wallet;
             let _destination: Wallet;
             if("transferAll" === _ext.extrinsic.method.method ){
-            // get tx Sender
-            _sender = await extractEventAsWalletAsset(
-                _ext.extrinsic.signer.toString(),
-                BigInt(0),
-                _ext.block.timestamp,
-                _ext.extrinsic.hash.toString()
-            );
+                // get tx Sender
+                _sender = await extractEventAsWalletAsset(
+                    _ext.extrinsic.signer.toString(),
+                    BigInt(0),
+                    _ext.block.timestamp,
+                    _ext.extrinsic.hash.toString()
+                );
 
-            let _amount: bigint = BigInt(0);
-            if(0 < _sender.transaction.length){
-                _amount = BigInt(_sender.transaction[_sender.transaction.length - 1].amount);
-            }
-            // tx Sender
-            _sender = await extractEventAsWalletAsset(
-                _ext.extrinsic.signer.toString(),
-                -_amount,
-                _ext.block.timestamp,
-                _ext.extrinsic.hash.toString()
-            );
-            _wallets.push(_sender);
+                let _amount: bigint = BigInt(0);
+                if(0 < _sender.transaction.length){
+                    _amount = BigInt(_sender.transaction[_sender.transaction.length - 1].amount);
+                }
+                // tx Sender
+                _sender = await extractEventAsWalletAsset(
+                    _ext.extrinsic.signer.toString(),
+                    -_amount,
+                    _ext.block.timestamp,
+                    _ext.extrinsic.hash.toString()
+                );
 
-            // Destination
-            _destination = await extractEventAsWalletAsset(
-                dest.toString(),
-                _amount,
-                _ext.block.timestamp,
-                _ext.extrinsic.hash.toString()
-            );
-            _wallets.push(_destination);
+                // Destination
+                _destination = await extractEventAsWalletAsset(
+                    dest.toString(),
+                    _amount,
+                    _ext.block.timestamp,
+                    _ext.extrinsic.hash.toString()
+                );
+
+                await _sender.save();
+                await _destination.save();
             }
             else{
-            // tx Sender
-            _sender = await extractEventAsWalletAsset(
-                _ext.extrinsic.signer.toString(),
-                -BigInt(value.toString()) - _gasUsedCount,
-                _ext.block.timestamp,
-                _ext.extrinsic.hash.toString()
-            );
+                // tx Sender
+                _sender = await extractEventAsWalletAsset(
+                    _ext.extrinsic.signer.toString(),
+                    -BigInt(value.toString()) - _gasUsedCount,
+                    _ext.block.timestamp,
+                    _ext.extrinsic.hash.toString()
+                );
 
-            // Destination
-            _destination = await extractEventAsWalletAsset(
-                dest.toString(),
-                BigInt(value.toString()),
-                _ext.block.timestamp,
-                _ext.extrinsic.hash.toString()
-            );
+                // Destination
+                _destination = await extractEventAsWalletAsset(
+                    dest.toString(),
+                    BigInt(value.toString()),
+                    _ext.block.timestamp,
+                    _ext.extrinsic.hash.toString()
+                );
+                await _sender.save();
+                await _destination.save();
             }
 
             logger.debug("native transfer(" +_ext.block.block.header.number.toString() + ") :" + _ext.extrinsic.signer.toString() + " -> " + dest.toString() +" " + value.toString());
@@ -159,11 +151,10 @@ async function fetchNativeWallet(_ext: SubstrateExtrinsic): Promise<Wallet[]>{
                 _ext.block.timestamp,
                 _ext.extrinsic.hash.toString()
             );
-            _wallets.push(_evmWithdrawWallet);
+            _evmWithdrawWallet.save();
             logger.debug("evm withdraw: " + address + " -> " + _ext.extrinsic.signer.toString() +" " + value.toString());
         }
     }
-    return _wallets;
 }
 
 /**
@@ -174,8 +165,7 @@ async function fetchNativeWallet(_ext: SubstrateExtrinsic): Promise<Wallet[]>{
  * @param txhash transaction hash
  * @returns wallet entity
  */
-async function fetchEvmWallet(_ext: SubstrateExtrinsic): Promise<Wallet[]>{
-    let _wallets: Wallet[] = [];
+async function fetchEvmWallet(_ext: SubstrateExtrinsic): Promise<void>{
     const modlPotStakeADDRESS = "YQnbw3h6couUX48Ghs3qyzhdbyxA3Gu9KQCoi8z2CPBf9N3";
     const _evmCall: FrontierEvmCall = await FrontierEvmDatasourcePlugin.handlerProcessors['substrate/FrontierEvmCall'].transformer(_ext, {} as any, undefined, undefined) as any;
     if(_evmCall.success){
@@ -200,7 +190,7 @@ async function fetchEvmWallet(_ext: SubstrateExtrinsic): Promise<Wallet[]>{
         );
         _from.evmWallet = _evmCall.from;
         _from.isEvmWallet = true;
-        _wallets.push(_from);
+        await _from.save();
 
         if(BigInt(0) !== _evmCall.value.toBigInt()){
         // 
@@ -209,12 +199,11 @@ async function fetchEvmWallet(_ext: SubstrateExtrinsic): Promise<Wallet[]>{
             );
             _to.evmWallet = _evmCall.to;
             _to.isEvmWallet = true;
-            _wallets.push(_to);
+            await _to.save();
 
             logger.debug("evm transfer: " + _evmCall.from + "("+ evmToNativeAddress(_evmCall.from) + ")->" + _evmCall.to +" " + _evmCall.value.toString());
         }
     }
-    return _wallets;
 }
 
 /**

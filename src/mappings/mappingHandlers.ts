@@ -62,7 +62,7 @@ async function fetchNativeWallet(_ext: SubstrateExtrinsic): Promise<void>{
     const modlPotStakeADDRESS = "YQnbw3h6couUX48Ghs3qyzhdbyxA3Gu9KQCoi8z2CPBf9N3";
     if(_ext.success){
 
-        logger.debug(_ext.extrinsic.signer.toString() + " " + _ext.extrinsic.method.method.toString());
+        // logger.debug(_ext.extrinsic.signer.toString() + " " + _ext.extrinsic.method.method.toString());
         /// gas fee
         var _gasUsedCount = BigInt(0);
         _ext.events.forEach((evt)=>{
@@ -80,7 +80,7 @@ async function fetchNativeWallet(_ext: SubstrateExtrinsic): Promise<void>{
             if(isHexString(dest.toString())){
             // TODO: public key to native address
             // const destSS58 = detriveAddress(dest.toString(), path ,42);
-            logger.debug("hex: " +_ext.extrinsic.signer.toString() + " -> " + dest.toString() +" " + value.toString());
+            // logger.debug("hex: " +_ext.extrinsic.signer.toString() + " -> " + dest.toString() +" " + value.toString());
             }
             
             let _sender: Wallet;
@@ -137,12 +137,12 @@ async function fetchNativeWallet(_ext: SubstrateExtrinsic): Promise<void>{
                 await _destination.save();
             }
 
-            logger.debug("native transfer(" +_ext.block.block.header.number.toString() + ") :" + _ext.extrinsic.signer.toString() + " -> " + dest.toString() +" " + value.toString());
+            // logger.debug("native transfer(" +_ext.block.block.header.number.toString() + ") :" + _ext.extrinsic.signer.toString() + " -> " + dest.toString() +" " + value.toString());
 
         }
         else if(_ext.extrinsic.method.section === 'evm' && _ext.extrinsic.method.method === 'withdraw'){
             /// evm withdraw 
-            logger.debug(_ext.extrinsic.signer.toString()); 
+            // logger.debug(_ext.extrinsic.signer.toString()); 
 
             const [address, value] =  _ext.extrinsic.args as unknown as TransferExtrinscArgs;
             const _evmWithdrawWallet = await extractEventAsWalletAsset(
@@ -152,7 +152,7 @@ async function fetchNativeWallet(_ext: SubstrateExtrinsic): Promise<void>{
                 _ext.extrinsic.hash.toString()
             );
             _evmWithdrawWallet.save();
-            logger.debug("evm withdraw: " + address + " -> " + _ext.extrinsic.signer.toString() +" " + value.toString());
+            // logger.debug("evm withdraw: " + address + " -> " + _ext.extrinsic.signer.toString() +" " + value.toString());
         }
     }
 }
@@ -170,10 +170,10 @@ async function fetchEvmWallet(_ext: SubstrateExtrinsic): Promise<void>{
     const _evmCall: FrontierEvmCall = await FrontierEvmDatasourcePlugin.handlerProcessors['substrate/FrontierEvmCall'].transformer(_ext, {} as any, undefined, undefined) as any;
     if(_evmCall.success){
         
-        logger.debug(_ext.block.block.header.number);
-        logger.debug(_evmCall.from); 
-        logger.debug(_evmCall.to);  
-        logger.debug(_evmCall.value); 
+        // logger.debug(_ext.block.block.header.number);
+        // logger.debug(_evmCall.from); 
+        // logger.debug(_evmCall.to);  
+        // logger.debug(_evmCall.value); 
         /// gas fee
         var _gasUsedCount = BigInt(0);
         _ext.events.forEach((evt)=>{
@@ -201,7 +201,7 @@ async function fetchEvmWallet(_ext: SubstrateExtrinsic): Promise<void>{
             _to.isEvmWallet = true;
             await _to.save();
 
-            logger.debug("evm transfer: " + _evmCall.from + "("+ evmToNativeAddress(_evmCall.from) + ")->" + _evmCall.to +" " + _evmCall.value.toString());
+            // logger.debug("evm transfer: " + _evmCall.from + "("+ evmToNativeAddress(_evmCall.from) + ")->" + _evmCall.to +" " + _evmCall.value.toString());
         }
     }
 }
